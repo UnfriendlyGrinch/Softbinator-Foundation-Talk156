@@ -1,0 +1,12 @@
+plugin: hcloud
+
+keyed_groups:
+  # Group by a location with prefix e.g. "hcloud_location_nbg1" or "hcloud_location_hel1"
+  - key: location
+    prefix: hcloud_location
+  # and image_os_flavor without prefix and separator e.g. "centos"
+  - key: image_os_flavor
+    separator: ""
+  # and status with prefix e.g. "server_status_running"
+  - key: status
+    prefix: server_status
