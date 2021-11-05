@@ -1,0 +1,106 @@
+#jinja2:trim_blocks: True, lstrip_blocks: True
+# {{ ansible_managed }}
+# commit: {{ lookup('pipe', 'git log -n 1 --pretty=format:"%h - %s - by %an" --abbrev-commit HEAD ../roles/nginx/templates/nginx.conf.j2' ) }}
+
+user {{ nginx.user }};
+worker_processes {{ nginx.worker_processes }};
+
+error_log {{ nginx_log_path }}/error.log;
+pid {{ nginx_pid_file }};
+
+events {
+    worker_connections {{ nginx.worker_connections }};
+}
+
+http {
+    include mime.types;
+    default_type application/octet-stream;
+
+    log_format main {{ nginx_log_format|indent(20) }};
+
+    access_log {{ nginx_log_path }}/access.log main;
+
+    sendfile on;
+    #tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout {{ nginx.keepalive_timeout }};
+
+    server_tokens {{ nginx.server_tokens }};
+    proxy_read_timeout {{ nginx.proxy.proxy_read_timeout }};
+    proxy_buffering {{ nginx.proxy.proxy_buffering }};
+    proxy_buffer_size {{ nginx.proxy.proxy_buffer_size }};
+    proxy_buffers {{ nginx.proxy.proxy_buffers }};
+    proxy_busy_buffers_size {{ nginx.proxy.proxy_busy_buffers_size }};
+
+    fastcgi_buffers {{ nginx.fastcgi.fastcgi_buffers }};
+    fastcgi_buffer_size {{ nginx.fastcgi.fastcgi_buffer_size }};
+
+    {% if ansible_os_family == "FreeBSD" or ( ansible_os_family == "Redhat" and nginx_official_yum_repo_enabled == true ) %}
+    # See - https://www.nginx.com/blog/thread-pools-boost-performance-9x/
+    aio threads;
+    {% endif %}
+
+    server_names_hash_bucket_size {{ nginx.server_names_hash_bucket_size }};
+    client_max_body_size {{ nginx.client_max_body_size }};
+
+    {% if nginx_gzip_compression_enabled == true %}
+    gzip on;
+    gzip_http_version 1.1;
+    gzip_comp_level 6;
+    gzip_min_length 1100;
+    gzip_buffers 4 8k;
+    gzip_types text/plain application/xhtml+xml text/css application/xml application/xml+rss text/javascript application/javascript application/x-javascr$
+    gzip_proxied any;
+    {% else %}
+    gzip off;
+    {% endif %}
+
+    {% if nginx_limit_conn_enabled == true %}
+    # Simple DOS mitigation
+    # Max c/s by ip
+    {% for zone in nginx.limit.conn %}
+    limit_conn_zone {{ zone.key }} zone={{ zone.zone }}:{{ zone.size }};
+    limit_conn {{ zone.zone }} {{ zone.number }};
+    {% endfor %}
+    {%- endif %}
+
+    {%- if nginx_limit_req_enabled == true %}
+    # Max rq/s by ip
+    {% for zone in nginx.limit.req %}
+    limit_req_zone {{ zone.key }} zone={{ zone.zone }}:{{ zone.size }} rate={{ zone.rate }}r/s;
+    {% if zone.delay == "nodelay" %}
+    limit_req zone={{ zone.zone }} burst={{ zone.burst }} {{ zone.delay }};
+    {% else %}
+    limit_req zone={{ zone.zone }} burst={{ zone.burst }} delay={{ zone.delay }};
+    {% endif %}
+    {% endfor %}
+    {%- endif %}
+
+    {% if nginx_fastcgi_cache_enabled == true %}
+    fastcgi_cache_path {{ nginx.fastcgi.fastcgi_cache_path }}/{{ nginx.fastcgi.fastcgi_cache_name }} levels={{ nginx.fastcgi.fastcgi_cache_levels }} keys_zone={{ nginx.fastcgi.fastcgi_cache_keyzone_name }}:{{ nginx.fastcgi.fastcgi_cache_keyzone_size }} inactive={{ nginx.fastcgi.fastcgi_cache_inactive }};
+    fastcgi_cache_key "$scheme$request_method$host$request_uri";
+    fastcgi_cache_use_stale error timeout invalid_header http_500;
+    fastcgi_ignore_headers Cache-Control Expires Set-Cookie;
+    {% endif %}
+
+    # Load config files from the Nginx include directory
+    include {{ nginx_include_dir }}/*.conf;
+
+    server {
+        listen 127.0.0.1:80;
+        server_name localhost;
+
+        access_log {{ nginx_log_path}}/localhost.access.log main;
+
+        location /nginx_status {
+            stub_status on;
+            access_log off;
+            allow 127.0.0.1;
+            deny all;
+        }
+
+        location / {
+            return 444;
+        }
+    }
+}

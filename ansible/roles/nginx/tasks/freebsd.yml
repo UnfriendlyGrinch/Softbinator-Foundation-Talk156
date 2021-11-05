@@ -1,0 +1,35 @@
+---
+- name: Install NGINX on FreeBSD
+  community.general.pkgng:
+    name: nginx
+    state: present
+  tags:
+    - nginx
+    - packages
+
+# Enable daemon on FreeBSD
+- name: Enable NGINX daemon
+  ansible.builtin.lineinfile:
+    dest: /etc/rc.conf.d/nginx
+    regexp: '^nginx_enable'
+    line: "nginx_enable=\"YES\""
+    owner: root
+    group: wheel
+    mode: 0640
+    create: yes
+    state: present
+  notify:
+    - nginx-restart
+  tags:
+    - nginx
+    - configuration
+
+- name: Create NGINX include directory
+  ansible.builtin.file:
+    path: "{{ nginx_include_dir }}"
+    owner: "{{ nginx['user'] }}"
+    group: "{{ nginx['group'] }}"
+    state: directory
+  tags:
+    - nginx
+    - configuration

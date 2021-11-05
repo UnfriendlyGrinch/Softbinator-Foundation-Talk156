@@ -1,0 +1,15 @@
+---
+- name: nginx-start
+  ansible.builtin.service:
+    name: "{{ nginx_service }}"
+    state: started
+
+- name: nginx-restart
+  ansible.builtin.service:
+    name: "{{ nginx_service }}"
+    state: restarted
+
+- name: nginx-stop
+  ansible.builtin.service:
+    name: "{{ nginx_service }}"
+    state: stopped

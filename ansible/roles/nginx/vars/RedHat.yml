@@ -1,0 +1,13 @@
+---
+nginx_official_yum_repo_enabled: yes
+nginx_official_yum_repos:
+  - { name: nginx-stable, description: 'nginx stable repo', baseurl: http://nginx.org/packages/centos/$releasever/$basearch/, enabled: yes, gpgcheck: yes, gpgkey: https://nginx.org/keys/nginx_signing.key }
+  - { name: nginx-mainline, description: 'nginx mainline repo', baseurl: http://nginx.org/packages/mainline/centos/$releasever/$basearch/, enabled: no, gpgcheck: yes, gpgkey: https://nginx.org/keys/nginx_signing.key }
+nginx_service: nginx
+nginx_server_dir: /etc/nginx
+nginx_include_dir: /etc/nginx/conf.d
+nginx_pid_file: /var/run/nginx.pid
+nginx_user: nginx
+nginx_group: nginx
+nginx_fastcgi_cache_path: /var/lib/nginx
+nginx_sudo_command_prefix: /bin/sudo

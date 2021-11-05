@@ -1,0 +1,39 @@
+---
+- name: Add official Nginx repositories
+  ansible.builtin.yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    baseurl: "{{ item.baseurl }}"
+    enabled: "{{ item.enabled }}"
+    gpgcheck: "{{ item.gpgcheck }}"
+    gpgkey: "{{ item.gpgkey }}"
+    file: nginx
+  when: nginx_official_yum_repo_enabled|bool
+  with_items: "{{ nginx_official_yum_repos }}"
+  tags:
+    - packages
+    - nginx
+
+- name: Gather the package facts
+  ansible.builtin.package_facts:
+    manager: rpm
+  tags:
+    - packages
+    - nginx
+
+- name: Install NGINX server on RHEL and derivatives
+  ansible.builtin.yum:
+    name: nginx
+    state: present
+  tags:
+    - packages
+    - nginx
+
+- name: Start and enable the NGINX daemon on RHEL and derivatives
+  ansible.builtin.service:
+    name: "{{ nginx_service }}"
+    state: started
+    enabled: yes
+  tags:
+    - configuration
+    - nginx

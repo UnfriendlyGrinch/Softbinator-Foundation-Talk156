@@ -1,0 +1,59 @@
+---
+- name: Gather OS Specific Variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_version'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_release'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}.yml"
+        - "../vars/{{ ansible_facts['os_family'] }}.yml"
+      skip: yes
+  tags:
+    - nginx
+    - configuration
+
+- name: Merge OS specific user/group into nginx dictionary
+  ansible.builtin.set_fact:
+    nginx: "{{ nginx | combine({'user': nginx_user}, {'group': nginx_group}) }}"
+
+- name: Merge OS specific fastcgi_cache_path into nginx dictionary
+  ansible.builtin.set_fact:
+    nginx: "{{ nginx | combine({'fastcgi': {'fastcgi_cache_path': nginx_fastcgi_cache_path}}, recursive=True) }}"
+
+- name: Include Red Hat specific tasks file
+  ansible.builtin.include_tasks: redhat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+  tags:
+    - nginx
+
+- name: Include FreeBSD specific tasks file
+  ansible.builtin.include_tasks: freebsd.yml
+  when: ansible_facts['os_family'] == 'FreeBSD'
+  tags:
+    - nginx
+
+- name: Create fastcgi_cache_path directory if it does not exist
+  ansible.builtin.file:
+    path: "{{ nginx['fastcgi']['fastcgi_cache_path'] }}/{{ nginx['fastcgi']['fastcgi_cache_name'] }}"
+    owner: "{{ nginx['user'] }}"
+    group: "{{ nginx['group'] }}"
+    state: directory
+    mode: 0700
+  tags:
+    - nginx
+    - configuration
+
+# Configure NGINX
+- name: Generate NGINX configuration
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: "{{ nginx_server_dir }}/nginx.conf"
+    owner: "{{ nginx['user'] }}"
+    group: "{{ nginx['group'] }}"
+    mode: 0640
+  notify:
+    - nginx-restart
+  tags:
+    - nginx
+    - configuration

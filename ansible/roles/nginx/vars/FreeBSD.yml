@@ -1,0 +1,10 @@
+---
+nginx_service: nginx
+nginx_server_dir: /usr/local/etc/nginx
+nginx_include_dir: /usr/local/etc/nginx/conf.d
+nginx_pid_file: /var/run/nginx.pid
+nginx_user: www
+nginx_group: www
+nginx_fastcgi_cache_path: /var/db/nginx
+nginx_sudo_command_prefix: /usr/local/bin/sudo
+nginx_letsencrypt_cert_path: /usr/local/etc/ssl/acme

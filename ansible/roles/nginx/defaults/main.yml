@@ -1,0 +1,149 @@
+---
+# default service name for Nginx
+nginx_service: nginx
+
+# directory where Nginx configuration is stored
+nginx_server_dir: /etc/nginx
+
+# file containing Nginx pid file
+nginx_pid_file: /var/run/nginx.pid
+
+# directory where Nginx log files are stored
+nginx_log_path: /var/log/nginx
+
+# default sudo path
+nginx_sudo_command_prefix: /bin/sudo
+
+# log format options
+nginx_log_format: |-
+          '$remote_addr - $remote_user [$time_local] "$request" '
+          '$status $body_bytes_sent "$http_referer" '
+          '"$http_user_agent" "$http_x_forwarded_for" '
+          '"$http_x_real_ip" $request_time $upstream_addr $upstream_response_time'
+
+# enable NGINX gzip compression
+nginx_gzip_compression_enabled: no
+
+# enable fastcgi cache in default HTTP scope
+nginx_fastcgi_cache_enabled: no
+
+# enable limiting the request processing rate per a defined key
+nginx_limit_req_enabled: no
+
+# enable limiting the number of connections per the defined key
+nginx_limit_conn_enabled: no
+
+# Nginx default config
+nginx:
+  # system user used by nginx
+  user: "{{ nginx_user }}"
+  # system group used by nginx
+  group: "{{ nginx_group }}"
+  # how many workers to spawn once it has become nound to the proper IP and Port
+  worker_processes: auto
+  # how many people can simultaneously be served by Nginx
+  # every browser usually opens at least 2 connections/server
+  worker_connections: 1024
+  # enables or disables emitting nginx version in error messages and in the Server response header field
+  server_tokens: "off"
+  # timeout during which a keep-alive client connection will stay open on the server side
+  keepalive_timeout: 65
+  # sets the maximum allowed size of the client request body, specified in the “Content-Length” request header field
+  client_max_body_size: "64m"
+  # set the bucket size for the server names hash tables
+  server_names_hash_bucket_size: 128
+  # proxy module config
+  proxy: {
+    # Defines a timeout for reading a response from the proxied server.
+    proxy_read_timeout: 150,
+    # enables or disables buffering of responses from the proxied server.
+    proxy_buffering: "on",
+    # sets the size of the buffer used for reading the first part of the response received from the proxied server
+    proxy_buffer_size: "128k",
+    # sets the number and size of the buffers used for reading a response from the proxied server, for a single connection
+    proxy_buffers: "4 1024k",
+    # when buffering of responses from the proxied server is enabled, limits the total size of buffers that can be busy sending a response to the client while the response is not yet fully read
+    proxy_busy_buffers_size: "1024k",
+  }
+  fastcgi: {
+    # set the number and size of the buffers used for reading a response from the FastCGI server, for a single connection
+    fastcgi_buffers: "5 1024k",
+    # when buffering of responses from the FastCGI server is enabled, limits the total size of buffers that can be busy sending a response to the client while the response is not yet fully read
+    fastcgi_buffer_size: "1024k",
+    # Nginx cache path
+    fastcgi_cache_path: "/var/lib/nginx",
+    # Nginx cache name
+    fastcgi_cache_name: "nginx-cache",
+    # define hierarchy levels of a cache
+    fastcgi_cache_levels: "1:2",
+    # shared memory zone name to store all active keys and information about data
+    fastcgi_cache_keyzone_name: "phpcache",
+    # shared memory zone size to store all active keys and information about data
+    fastcgi_cache_keyzone_size: "100m",
+    # time to remove cached data which was not accessed
+    fastcgi_cache_inactive: "10m",
+    # paramaters that should be passed to the FastCGI server
+    fastcgi_param: [],
+  }
+  limit:
+    req:
+      - zone: allips
+        burst: 400
+        delay: nodelay
+        key: "$binary_remote_addr"
+        size: 10m
+        rate: 400
+    conn:
+      - zone: limit_per_ip
+        number: 40
+        key: "$binary_remote_addr"
+        size: 10m
+
+# Default SSL
+nginx_ssl_session_timeout: "5m"
+nginx_ssl_protocols: "TLSv1.2 TLSv1.3"
+nginx_ssl_ciphers: "ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA256"
+nginx_ssl_prefer_server_ciphers: yes
+nginx_ssl_ecdh_curve: "secp384r1"
+nginx_ssl_session_cache: "shared:SSL:10m"
+
+# OCSP Stapling ---
+# fetch OCSP records from URL in ssl_certificate and cache them
+nginx_ssl_stapling: yes
+nginx_ssl_stapling_verify: yes
+
+# Default Content-Security-Policy: Allow everything but only from the same origin
+nginx_csp_default_src: "'self'"
+nginx_csp_script_src: "'self'"
+nginx_csp_object_src: "'none'"
+nginx_csp_style_src: "'self' 'unsafe-inline'"
+nginx_csp_img_src: "'self'"
+nginx_csp_frame_src: "'self'"
+nginx_csp_font_src: "'self'"
+nginx_csp_frame_ancestors: "'self'"
+
+# HSTS (ngx_http_headers_module is required) (15768000 seconds = 6 months)
+nginx_strict_transport_security: "max-age=15768000"
+
+# Allow the page to be displayed in a frame on the same origin as the page itself
+nginx_x_frame_options: "SAMEORIGIN"
+
+# Prevent browsers from incorrectly detecting non-scripts as scripts
+nginx_x_content_type_options: "nosniff"
+
+# Block pages from loading when they detect reflected XSS attacks
+nginx_x_xss_protection: "1; mode=block"
+
+# Default Let's Encrypt path
+# Assumes Certbot on Linux
+nginx_letsencrypt_cert_path: /etc/letsencrypt/live
+
+nginx_maintenance_html: "maintenance.html"
+
+nginx_custom_config: ""
+# Extra custom config inside VirtualHost
+#  nginx_custom_config: |
+#    location / {
+#        try_files $uri $uri/ =404;
+#    }
+

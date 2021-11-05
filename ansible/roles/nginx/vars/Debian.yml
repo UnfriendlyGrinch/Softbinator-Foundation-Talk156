@@ -1,0 +1,9 @@
+---
+nginx_service: nginx
+nginx_server_dir: /etc/nginx
+nginx_include_dir: /etc/nginx/conf.d
+nginx_pid_file: /var/run/nginx.pid
+nginx_user: nginx
+nginx_group: nginx
+nginx_fastcgi_cache_path: /var/lib/nginx
+nginx_sudo_command_prefix: /bin/sudo
