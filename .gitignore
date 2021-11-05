@@ -39,3 +39,5 @@ override.tf.json
 # example: *tfplan*
 
 .envrc
+
+packer-manifest.json
