@@ -1,0 +1,69 @@
+# .bashrc
+
+# User specific aliases and functions
+
+# Only execute commands with output from within login scripts when we're 
+# interactive; otherwise scp (and thus Ansible) will fail. 
+# See: https://bugzilla.redhat.com/show_bug.cgi?id=20527
+#
+
+[[ $- != *i* ]] && return
+
+alias rm='rm -i'
+alias cp='cp -i'
+alias mv='mv -i'
+
+# Source global definitions
+if [ -f /etc/bashrc ]; then
+	. /etc/bashrc
+fi
+
+
+# Only echo if you're an interactive shell or scp gets badly confused (but never complains)
+if [ "$PS1" ]; then
+
+	export PS1='\[\033[01;31m\]\H \[\033[01;34m\]\W \$ \[\033[00m\]'
+
+	echo "-------------------------------------------------------------------------";
+	echo "Whois on this machine: ";
+	echo "-------------------------------------------------------------------------";
+	/usr/bin/w -h;
+	echo "-------------------------------------------------------------------------";
+	echo "Free space on this machine:";
+	echo "-------------------------------------------------------------------------";
+	/bin/df -h;
+	echo "-------------------------------------------------------------------------";
+	echo "Uptime of the machine: ";
+	echo "-------------------------------------------------------------------------";
+	/usr/bin/uptime ;
+	echo
+	echo
+	echo "Active SSH connections on this machine: ";
+	/sbin/ss -at state established '( dport = :ssh or sport = :ssh )'
+	echo "-------------------------------------------------------------------------";
+
+	# Bring $SUDO_USER's own .inputrc into the current su(do) session
+	if [ ! -z "$SUDO_USER" ]; then
+		# ... but only if the file has the right permissions
+		if [ -f "/home/$SUDO_USER/.inputrc" ]; then
+			IUSER=$(stat -c '%U' "/home/$SUDO_USER/.inputrc")
+			IGROUP=$(stat -c '%G' "/home/$SUDO_USER/.inputrc")
+			IPERM=$(stat -c '%a' "/home/$SUDO_USER/.inputrc")
+
+			if [ $IUSER == $SUDO_USER ] && [ $IGROUP == $SUDO_USER ] && [ $IPERM -eq 660 -o $IPERM -eq 600 ] ; then
+				bind -f /home/$SUDO_USER/.inputrc
+			else
+				echo
+				echo "-------------------------------------------------------------------------";
+				echo "Warning: wrong permissions/mode for /home/$SUDO_USER/.inputrc ";
+				echo "/home/$SUDO_USER/.inputrc must be user/group owned by $SUDO_USER and 660";
+				echo "Keybindings NOT imported in current session! ";
+				echo "-------------------------------------------------------------------------";
+				echo
+			fi
+		fi
+
+	fi
+
+fi
+

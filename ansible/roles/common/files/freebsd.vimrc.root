@@ -1,0 +1,13 @@
+:syntax on
+:set nomodeline
+" :set term=cons25
+
+" Use Vim settings, rather then Vi settings (much better!).
+" This must be first, because it changes other options as a side effect.
+set nocompatible
+
+" show the cursor position all the time
+set ruler
+
+" display incomplete commands
+set showcmd

@@ -1,0 +1,260 @@
+---
+- name: Use permissive SELinux policy
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+  when: not enable_selinux
+  tags:
+    - configuration
+
+- name: Disable IPV6
+  ansible.posix.sysctl:
+    name: net.ipv6.conf.all.disable_ipv6
+    value: '1'
+    sysctl_file: /etc/sysctl.d/40-sysctl.conf
+    sysctl_set: yes
+    state: present
+    reload: yes
+  tags:
+    - configuration
+    - networking
+
+- name: Upgrade all packages
+  ansible.builtin.yum:
+    name: '*'
+    state: latest
+  when: upgrade_all_packages
+  tags:
+    - packages
+
+- name: Ensure packages needed by common role are installed on RHEL7 and/or derivatives
+  ansible.builtin.yum:
+    name: ['mtr', 'tmux', 'vim-enhanced', 'libselinux-python', 'iptables-services', 'epel-release', 'ntpdate']
+    state: present
+  when: ansible_facts['distribution_major_version'] == '7'
+  register: package_install
+  tags:
+    - packages
+
+- name: Ensure packages needed by common role are installed on RHEL8 and/or derivatives
+  ansible.builtin.yum:
+    name: ['mtr', 'tmux', 'vim-enhanced', 'python3-libselinux', 'iptables-services', 'epel-release']
+    state: present
+  when: ansible_facts['distribution_major_version'] == '8'
+  register: package_install
+  tags:
+    - packages
+
+- name: Ensure htop, lsof and strace packages are installed after epel-release on RHEL and/or derivatives
+  ansible.builtin.yum:
+    name: ['htop', 'lsof', 'strace']
+    state: present
+  when: package_install is succeeded
+  tags:
+    - packages
+
+- name: Enable iptables
+  ansible.builtin.service:
+    name: iptables.service
+    enabled: yes
+  when: package_install.changed
+  notify:
+    - iptables-restart
+  tags:
+    - configuration
+
+- name: Push template for sysconfig network file configuration
+  ansible.builtin.template:
+    src: etc-sysconfig-network.j2
+    dest: /etc/sysconfig/network
+    owner: root
+    group: root
+    mode: 0644
+  tags:
+    - configuration
+
+- name: Default .bashrc file for user root
+  ansible.builtin.copy:
+    src: centos.bashrc.root
+    dest: /root/.bashrc
+  tags:
+    - configuration
+
+- name: Set system locale
+  command: localectl set-keymap us
+
+# Nice prompt
+- name: Set PS1, LANG, LC_ALL
+  ansible.builtin.lineinfile:
+    dest: /etc/environment
+    regexp: "{{ item.regexp }}"
+    line: "{{ item.line }}"
+  with_items:
+    - { regexp: '^PS1', line: 'PS1=\[\033[01;31m\]\H \[\033[01;34m\]\W \$ \[\033[00m\]' }
+    - { regexp: '^LANG', line: 'LANG=en_US.utf-8' }
+    - { regexp: '^LC_ALL', line: 'LC_ALL=en_US.utf-8' }
+  tags:
+    - configuration
+
+# Disable uncommon filesystems
+- name: Disable CRAMFS, SQUASHFS, UDF
+  ansible.builtin.copy:
+    src: "centos.{{ item }}.conf"
+    dest: "/etc/modprobe.d/{{ item }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+    backup: no
+  with_items:
+    - cramfs
+    - squashfs
+    - udf
+  tags:
+    - configuration
+    - security
+
+# Disable uncommon protocols
+- name: Disable Datagram Congestion Control Protocol (DCCP), Stream Control Transmission Protocol (SCTP), Reliable Datagram Sockets (RDS), Transparent Inter-Process Communication (TIPC)
+  ansible.builtin.copy:
+    src: "centos.{{ item }}.conf"
+    dest: "/etc/modprobe.d/{{ item }}.conf"
+    owner: root
+    group: root
+    mode: 0644
+    backup: no
+  with_items:
+    - dccp
+    - sctp
+    - rds
+    - tipc
+  tags:
+    - configuration
+    - security
+
+- name: Add ntpdate crontab entries
+  ansible.builtin.cron:
+    name: "ntpdate"
+    minute: "30"
+    hour: "5"
+    job: "/sbin/ntpdate -b europe.pool.ntp.org"
+  when: ansible_facts['distribution_major_version'] == '7'
+  tags:
+    - configuration
+    - cron
+
+- ansible.posix.sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    # DROP ICMP echo-requests sent to broadcast/multi-cast addresses.
+    - { name: net.ipv4.icmp_echo_ignore_broadcasts, value: 1 }
+    # DROP source routed packets
+    - { name: net.ipv4.conf.all.accept_source_route, value: 0 }
+    # Enable TCP SYN cookies
+    - { name: net.ipv4.tcp_syncookies, value: 1 }
+    # Do not ACCEPT ICMP redirect
+    - { name: net.ipv4.conf.all.accept_redirects, value: 0 }
+    # Don't send ICMP redirect
+    - { name: net.ipv4.conf.all.send_redirects, value: 0 }
+    # Enable source spoofing protection
+    - { name: net.ipv4.conf.all.rp_filter, value: 1 }
+    # Log impossible (martian) packets
+    - { name: net.ipv4.conf.all.log_martians, value: 1 }
+  tags:
+    - configuration
+    - sysctl
+
+- name: Add group "nohidproc"
+  ansible.builtin.group:
+    name: nohidproc
+    gid: 23
+    state: present
+
+- name: Add existing user "polkitd" to group "nohidproc"
+  ansible.builtin.user:
+    name: polkitd
+    groups: nohidproc
+    append: yes
+
+- name: Increase server security by hiding processes from other users (/proc option)
+  ansible.posix.mount:
+    path: /proc
+    src: proc
+    fstype: proc
+    opts: rw,nosuid,nodev,noexec,relatime,hidepid=2,gid=nohidproc
+    dump: 0
+    passno: 0
+    state: mounted
+  notify:
+    - polkit-restart
+  tags:
+    - configuration
+    - security
+
+- name: bash history and console timeout config
+  ansible.builtin.blockinfile:
+    path: /etc/profile.d/sec.sh
+    owner: root
+    group: root
+    mode: 0644
+    create: yes
+    block: |
+      # several security releated initializations
+
+      shopt -s histappend
+      shopt -s checkwinsize
+
+      TMOUT=1800
+      readonly TMOUT
+      export TMOUT
+
+      export HISTCONTROL=ignoredps:ignorespace
+      export HISTTIMEFORMAT='%Y-%m-%d %H:%M:%S  '
+      export HISTIGNORE='ls:ll:history'
+      export HISTSIZE=1000
+      export HISTFILESIZE=10000
+
+      export EDITOR=vim
+  tags:
+    - configuration
+    - security
+
+- name: Redirect IPtables Logging Location
+  ansible.builtin.lineinfile:
+    path: /etc/rsyslog.conf
+    insertafter: "{{ item.insertafter | default(omit) }}"
+    line: "{{ item.line }}"
+    regexp: "{{ item.search_string | default(omit) }}"
+    owner: root
+    group: root
+    mode: 0644
+  with_items:
+    - { search_string: '^\*\.info', line: '*.info;mail.none;authpriv.none;cron.none;kern.!=debug   /var/log/messages' }
+    - { insertafter: '^\*\.info', line: 'kern.=debug                                             -/var/log/iptables.log' }
+  when: ansible_facts['distribution_major_version'] == '7'
+  notify:
+    - syslog-restart
+  tags:
+    - configuration
+    - syslog
+
+- name: Rotate IPtables Log
+  ansible.builtin.blockinfile:
+    path: /etc/logrotate.d/iptables
+    create: yes
+    block: |
+      {
+          rotate 7
+          daily
+          missingok
+          notifempty
+          delaycompress
+          compress
+          postrotate
+              invoke-rc.d rsyslog rotate > /dev/null
+          endscript
+      }
+  tags:
+    - configuration
+    - syslog

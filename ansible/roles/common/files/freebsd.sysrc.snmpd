@@ -1,0 +1,3 @@
+snmpd_enable="YES"
+snmpd_flags=""
+snmpd_conffile="/usr/local/etc/snmpd.conf"

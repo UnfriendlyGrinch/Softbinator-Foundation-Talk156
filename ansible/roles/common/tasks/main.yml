@@ -1,0 +1,45 @@
+---
+- name: Gather OS Specific Variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+      - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yml"
+      - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_version'] }}.yml"
+      - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_release'] }}.yml"
+      - "../vars/{{ ansible_facts['distribution'] }}.yml"
+      - "../vars/{{ ansible_facts['os_family'] }}.yml"
+      - "../vars/defaults.yml"
+      skip: yes
+
+# Include RedHat stuff
+- ansible.builtin.include_tasks: redhat.yml
+  when: ansible_facts['os_family'] == 'RedHat'
+
+- name: Set timezone to UTC
+  community.general.timezone:
+    name: UTC
+
+- name: motd
+  ansible.builtin.copy:
+    src: motd
+    dest: /etc/motd
+
+- name: Creates /opt directory
+  ansible.builtin.file:
+    path: /opt
+    state: directory
+
+- name: Creates /opt directories
+  ansible.builtin.file:
+    path: "/opt/{{ item }}"
+    state: directory
+  with_items:
+    - bin
+    - etc
+    - tmp
+
+- name: Our SSH banner
+  ansible.builtin.copy:
+    src: sshd_banner
+    dest: /opt/etc/sshd_banner
+    mode: 0640

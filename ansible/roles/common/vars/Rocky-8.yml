@@ -1,0 +1,3 @@
+---
+polkit_service: polkit
+upgrade_all_packages: no

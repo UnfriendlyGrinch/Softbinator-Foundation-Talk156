@@ -1,0 +1,4 @@
+snmpd_service: snmpd
+syslog_service: rsyslog
+polkit_service: polkit
+upgrade_all_packages: no

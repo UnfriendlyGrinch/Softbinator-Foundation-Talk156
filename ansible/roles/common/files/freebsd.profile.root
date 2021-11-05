@@ -1,0 +1,27 @@
+PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/games:/usr/local/sbin:/usr/local/bin:~/bin
+export PATH
+HOME=/root
+export HOME
+TERM=${TERM:-xterm}
+export TERM
+PAGER=more
+export PAGER
+
+echo "-------------------------------------------------------------------------";
+echo "Whois on this machine: ";
+echo "-------------------------------------------------------------------------";
+/usr/bin/w -h;
+echo "-------------------------------------------------------------------------";
+echo "Free space on this machine:";
+echo "-------------------------------------------------------------------------";
+/bin/df -h;
+echo "-------------------------------------------------------------------------";
+echo "Uptime of the machine: ";
+echo "-------------------------------------------------------------------------";
+/usr/bin/uptime ;
+echo
+echo
+#echo "Active connections on this machine: ";
+#/usr/bin/netstat -at -f inet | grep ESTABLISHED
+#echo "-------------------------------------------------------------------------";
+

@@ -1,0 +1,25 @@
+---
+- name: iptables-restart
+  ansible.builtin.service:
+    name: iptables.service
+    state: restarted
+
+- name: pflog-restart
+  ansible.builtin.service:
+    name: pflog
+    state: restarted
+
+- name: snmpd-restart
+  ansible.builtin.service:
+    name: "{{ snmpd_service }}"
+    state: restarted
+
+- name: syslog-restart
+  ansible.builtin.service:
+    name: "{{ syslog_service }}"
+    state: restarted
+
+- name: polkit-restart
+  ansible.builtin.service:
+    name: "{{ polkit_service }}"
+    state: restarted

@@ -1,0 +1,4 @@
+---
+default_iptables: no
+ntpd_service: ntpd
+enable_selinux: no
