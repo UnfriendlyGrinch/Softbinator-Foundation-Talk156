@@ -1,0 +1,29 @@
+---
+env: default
+
+sysadmins: ['grassharper','darkelf']
+
+usergroups:
+  - name: grinch
+    gid: 5000
+    state: present
+
+sysadmin_accounts:
+  - name: grassharper
+    description: AB
+    groups: ['wheel']
+    uid: 1000
+    state: present
+    key:
+      - name: grassharper.pub
+        state: present
+  - name: darkelf
+    description: ES
+    groups: ['wheel']
+    uid: 1005
+    state: present
+    key:
+      - name: darkelf.pub
+        state: present
+
+allowsysadmins: ['grassharper','darkelf']
