@@ -1,0 +1,71 @@
+---
+- name: Gather OS Specific Variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_version'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_release'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}.yml"
+        - "../vars/{{ ansible_facts['os_family'] }}.yml"
+        - "../vars/defaults.yml"
+      skip: yes
+  tags:
+    - sshd
+    - configuration
+
+- name: OpenSSH server and client
+  block:
+    # Install on RHEL and derivatives
+    - name: Install OpenSSH server and client on RHEL derivatives
+      ansible.builtin.yum:
+        name: openssh-server
+        state: present
+      tags:
+        - sshd
+        - packages
+
+    # Enable daemon on RHEL and derivatives
+    - name: Start and enable the sshd daemon
+      ansible.builtin.service:
+        name: "{{ sshd_service }}"
+        state: started
+        enabled: yes
+      tags:
+        - sshd
+        - configuration
+        - notest
+  when: ansible_facts['os_family'] == 'RedHat'
+
+# Configure sshd.
+- name: Generate sshd configuration for CentOS
+  ansible.builtin.template:
+    src: "CentOS/{{ item }}/sshd_config.j2"
+    dest: "{{ sshd_config_file }}"
+    owner: "{{ sshd_config_owner }}"
+    group: "{{ sshd_config_group }}"
+    mode: 0600
+  when: ansible_facts['distribution'] == 'CentOS' and ansible_facts['distribution_version'][:3] == item
+  with_items: [ '7.4', '7.5', '7.6', '7.7', '7.9', '8.0', '8.1', '8.2', '8.4' ]
+  notify:
+    - sshd-restart
+  tags:
+    - sshd
+    - configuration
+    - notest
+
+- name: Generate sshd configuration for Rocky
+  ansible.builtin.template:
+    src: "Rocky/{{ item }}/sshd_config.j2"
+    dest: "{{ sshd_config_file }}"
+    owner: "{{ sshd_config_owner }}"
+    group: "{{ sshd_config_group }}"
+    mode: 0600
+  when: ansible_facts['distribution'] == 'Rocky' and ansible_facts['distribution_version'][:3] == item
+  with_items: [ '8.4' ]
+  notify:
+    - sshd-restart
+  tags:
+    - sshd
+    - configuration
+    - notest

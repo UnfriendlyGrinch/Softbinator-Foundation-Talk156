@@ -1,0 +1,15 @@
+---
+- name: sshd-start
+  ansible.builtin.service:
+    name: "{{ sshd_service }}"
+    state: started
+
+- name: sshd-restart
+  ansible.builtin.service:
+    name: "{{ sshd_service }}"
+    state: restarted
+
+- name: sshd-stop
+  ansible.builtin.service:
+    name: "{{ sshd_service }}"
+    state: stopped

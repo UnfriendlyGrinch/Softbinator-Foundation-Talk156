@@ -1,0 +1,7 @@
+---
+sshd_config_group: wheel
+sshd_config_mode: "0640"
+sshd_config_file: /etc/ssh/sshd_config
+sshd_binary: /usr/sbin/sshd
+sshd_permit_root_login: no
+sshd_sftp_server: /usr/libexec/sftp-server

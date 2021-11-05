@@ -1,0 +1,19 @@
+---
+allowusers: "{{ allowsysadmins + (allowregularusers | default([])) }}"
+
+sshd_port: 22
+sshd_service: sshd
+sshd_config_owner: root
+sshd_config_group: root
+PasswordAuthentication: no
+ChallengeResponseAuthentication: no
+GSSAPIAuthentication: no
+GSSAPICleanupCredentials: no
+UsePAM: yes
+X11Forwarding: no
+PermitTTY: no
+UseDNS: no
+UsePrivilegeSeparation: sandbox
+
+# Lists of ips to listen on
+sshd_ips: ['0.0.0.0']
