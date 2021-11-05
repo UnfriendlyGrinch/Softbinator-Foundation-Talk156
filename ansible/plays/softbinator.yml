@@ -1,0 +1,34 @@
+---
+- hosts: all
+  become: yes
+
+  roles:
+    - common
+    - sshd
+    - users
+    - nginx
+
+  post_tasks:
+    - name: Creates /var/www directory
+      ansible.builtin.file:
+        path: /var/www
+        state: directory
+    - name: Creates /var/www/html directory
+      ansible.builtin.file:
+        path: /var/www/html
+        state: directory
+    - name: Our index file
+      ansible.builtin.copy:
+        src: index.html
+        dest: /var/www/html/index.html
+        mode: 0644
+    - name: Our img file
+      ansible.builtin.copy:
+        src: 156.jpg
+        dest: /var/www/html/156.jpg
+        mode: 0644
+    - name: Our vhost file
+      ansible.builtin.copy:
+        src: samedin.ro.conf
+        dest: /etc/nginx/conf.d/samedin.ro.conf
+        mode: 0644
