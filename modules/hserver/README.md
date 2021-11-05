@@ -1,7 +1,5 @@
 # Terraform module for Hetzner Cloud Server resource
 
-[[_TOC_]]
-
 # Overview
 
 This Terraform module creates a server on the Hetzner Cloud Infrastructure.
