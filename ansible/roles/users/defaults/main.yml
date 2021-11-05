@@ -1,0 +1,16 @@
+---
+# Making each user have their own group with group name same as user name
+users_create_same_group: yes
+# The group all users should belong to
+users_default_group: 'grinch'
+# Create home dirs for new users
+users_create_homedirs: yes
+# Users default shell
+users_default_shell: /bin/bash
+# Admin group
+admin_group: wheel
+
+sshd_service: sshd
+
+# Lists of users and groups to create
+users: []

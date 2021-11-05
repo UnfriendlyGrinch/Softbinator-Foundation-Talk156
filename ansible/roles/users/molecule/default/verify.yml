@@ -1,0 +1,33 @@
+---
+# Execute Ansible tests for user management.
+
+- name: Verify
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Run getent against passwd database
+      ansible.builtin.getent:
+        database: passwd
+
+    - name: Get stats of SSH Keys
+      ansible.builtin.stat:
+        path: "/home/{{ item.0.name }}/.ssh/authorized_keys"
+      register: ssh_keys
+      with_subelements:
+        - "{{ sysadmin_accounts }}"
+        - key
+        - skip_missing: yes
+      when:
+        - item.1.state == "present"
+
+    - name: check users uid
+      ansible.builtin.assert:
+        that:
+          - "{{ item.uid }} == {{ getent_passwd[item.name].1 }}"
+      with_items: "{{ sysadmin_accounts }}"
+
+    - name: check users ssh keys
+      ansible.builtin.assert:
+        that:
+          - "{{ item.stat.exists }}"
+      with_items: "{{ ssh_keys.results }}"

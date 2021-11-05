@@ -1,0 +1,160 @@
+---
+- name: Gather OS Specific Variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_version'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_release'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}.yml"
+        - "../vars/{{ ansible_facts['os_family'] }}.yml"
+        - "../vars/defaults.yml"
+      skip: yes
+  tags:
+    - users
+    - configuration
+
+- name: Set new variables
+  ansible.builtin.set_fact:
+    users: "{{ sysadmins + (regular_users | default([])) }}"
+    accounts: "{{ sysadmin_accounts + (regular_accounts | default([])) }}"
+    allowusers: "{{ allowsysadmins + (allowregularusers | default([])) }}"
+
+- name: Update variables in case system users should be added
+  ansible.builtin.set_fact:
+    users: "{{ users + system_users }}"
+    accounts: "{{ accounts + system_accounts }}"
+    allowusers: "{{ allowusers + allowsystemusers }}"
+  when: inventory_hostname is search(item)
+  with_items: ['dev', 'staging', 'test']
+
+- name: Create wheel group on Debian
+  ansible.builtin.group:
+    name: wheel
+    gid: 5001
+    state: present
+  when: ansible_facts['os_family'] == 'Debian'
+  tags:
+    - users
+    - groups
+    - configuration
+
+- name: Create default groups
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.gid }}"
+    state: "{{ item.state | default('present') }}"
+  with_items: "{{ usergroups }}"
+  tags:
+    - users
+    - groups
+    - configuration
+
+- name: Per-user group management
+  ansible.builtin.group:
+    name: "{{ item.name }}"
+    gid: "{{ item.uid | default(omit) }}"
+  with_items: "{{ accounts }}"
+  when:
+    - users_create_same_group
+    - item.name in users
+    - item.state == "present"
+  tags:
+    - users
+    - configuration
+
+- name: Manage users
+  ansible.builtin.user:
+    name: "{{ item.name }}"
+    group: "{{ item.name if users_create_same_group else users_default_group }}"
+    groups: "{{ item.groups | default([]) | join(',') or omit }}"
+    shell: "{{ item.shell | default(users_default_shell) }}"
+    password: "{{ item.password | default(omit) }}"
+    state: "{{ item.state | default('present') }}"
+    comment: "{{ item.description | default(omit) }}"
+    uid: "{{ item.uid | default(omit) }}"
+    createhome: "{{'yes' if users_create_homedirs else 'no'}}"
+    append: yes
+    remove: yes
+  with_items: "{{ accounts }}"
+  when: item.name in users
+  tags:
+    - users
+    - configuration
+
+- name: SSH keys
+  ansible.posix.authorized_key:
+    user: "{{ item.0.name }}"
+    key: "{{ lookup('file', role_path + '/files/ssh_keys/' + item.1.name) }}"
+    state: "{{ item.1.state }}"
+  with_subelements:
+    - "{{ accounts }}"
+    - key
+    - skip_missing: yes
+  when:
+    - item.0.name in users
+    - item.0.state == "present"
+  tags:
+    - users
+    - configuration
+
+- name: Per-user recursively set directory and file permissions
+  ansible.builtin.file:
+    path: "/home/{{ item.name }}"
+    owner: "{{ item.name }}"
+    group: "{{ item.name }}"
+    recurse: yes
+  with_items: "{{ accounts }}"
+  when:
+    - item.name in users
+    - item.state == "present"
+  tags:
+    - users
+    - configuration
+
+- name: Allow wheel group to have passwordless sudo
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^%wheel\s'
+    line: '%wheel ALL=(ALL) NOPASSWD: ALL'
+    validate: visudo -cf %s
+  when: ansible_facts['os_family'] == 'RedHat'
+  tags:
+    - users
+    - configuration
+
+- name: Allow users to connect through SSH
+  ansible.builtin.lineinfile:
+    path: "/etc/ssh/sshd_config"
+    regexp: '^(AllowUsers(?!.*\b{{ item.name }}\b).*)$'
+    line: '\1 {{ item.name }}'
+    backrefs: yes
+  with_items: "{{ accounts }}"
+  when:
+    - (allowusers is defined) and (allowusers | length > 0)
+    - item.state == "present"
+  register: alterallowusers
+  tags:
+    - users
+    - configuration
+    - notest
+
+- name: Insert "Match User" configuration block in /etc/ssh/sshd_config
+  ansible.builtin.blockinfile:
+    path: /etc/ssh/sshd_config
+    marker: ""
+    block: |
+      Match User {{ item.name }}
+              AllowAgentForwarding yes
+              PermitTTY yes
+  with_items: "{{ accounts }}"
+  when:
+    - alterallowusers.changed
+    - item.state == "present"
+  notify:
+    - sshd-restart
+  tags:
+    - users
+    - configuration
+    - skip_ansible_lint
+    - notest
