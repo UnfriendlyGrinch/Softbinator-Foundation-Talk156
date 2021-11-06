@@ -57,3 +57,9 @@ variable "rebuild_protection" {
   type        = bool
   default     = true
 }
+
+variable "user" {
+  description = "User to be used for the connection"
+  type        = string
+  default     = "root"
+}

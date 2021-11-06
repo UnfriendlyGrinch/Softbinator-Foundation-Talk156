@@ -25,14 +25,14 @@ resource "null_resource" "ansible-playbook" {
   provisioner "remote-exec" {
     connection {
       host = hcloud_server.base-server.ipv4_address
-      user = "root"
+      user = var.user
     }
 
     inline = ["echo 'READY'"]
   }
 
   provisioner "local-exec" {
-    command     = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/hcloud.yml -l ${hcloud_server.base-server.name} plays/${var.playbook} -u root"
+    command     = "ANSIBLE_HOST_KEY_CHECKING=False ansible-playbook -i inventory/hcloud.yml -l ${hcloud_server.base-server.name} plays/${var.playbook} -u ${var.user}"
     working_dir = "${path.cwd}/ansible"
   }
 }
