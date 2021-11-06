@@ -1,5 +1,7 @@
 # Terraform module for Hetzner Cloud Server resource
 
+[[_TOC_]]
+
 # Overview
 
 This Terraform module creates a server on the Hetzner Cloud Infrastructure.
@@ -77,6 +79,12 @@ Default: `true`
 Description: "Enable rebuild protection (Needs to be the same as delete_protection)."
 
 Default: `true`
+
+**user** (string)
+
+Description: "User to be used for the connection"
+
+Default: `root`
 
 # Outputs
 
