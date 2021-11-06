@@ -12,7 +12,7 @@ variable "hcloud_servers" {
     playbook           = optional(string)
     delete_protection  = bool
     rebuild_protection = bool
-    user               = string
+    user               = optional(string)
   }))
 }
 
