@@ -13,14 +13,17 @@ data "hcloud_images" "custom" {
 module "servers" {
   for_each = { for hcloud_server in local.hcloud_servers : hcloud_server.name => hcloud_server }
 
-  source          = "../modules/hserver"
-  name            = each.key
-  server_type     = each.value.server_type
-  image           = length(each.value.image) == 0 ? element(data.hcloud_images.custom.images.*.id, index(data.hcloud_images.custom.images.*.description, "softbinator-${format("%s-%s", each.value.os, each.value.major_version)}")) : each.value.image
-  location        = each.value.location
-  ssh_keys        = each.value.ssh_keys
-  ansible_enabled = each.value.ansible_enabled
-  playbook        = each.value.playbook
+  source             = "../modules/hserver"
+  name               = each.key
+  server_type        = each.value.server_type
+  image              = length(each.value.image) == 0 ? element(data.hcloud_images.custom.images.*.id, index(data.hcloud_images.custom.images.*.description, "softbinator-${format("%s-%s", each.value.os, each.value.major_version)}")) : each.value.image
+  location           = each.value.location
+  ssh_keys           = each.value.ssh_keys
+  ansible_enabled    = each.value.ansible_enabled
+  playbook           = each.value.playbook
+  delete_protection  = each.value.delete_protection
+  rebuild_protection = each.value.rebuild_protection
+  user               = each.value.user
 }
 
 resource "hcloud_floating_ip" "servers_floating_ips" {
