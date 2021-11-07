@@ -1,1 +1,13 @@
 ---
+restic_enabled: yes
+restic_project: softbinator
+
+restic_remote_server:
+  - host: 116.203.51.87
+    alias: restic_main_backup
+    port: 22
+    enabled: yes
+
+restic:
+  - name: html_samedin_ro
+    path: /var/www/html
