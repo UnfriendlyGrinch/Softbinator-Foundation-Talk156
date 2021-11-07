@@ -1,7 +1,5 @@
 # Terraform module for Hetzner Cloud Server resource
 
-[[_TOC_]]
-
 # Overview
 
 This Terraform module creates a server on the Hetzner Cloud Infrastructure.
@@ -120,7 +118,7 @@ The modules defines two resource types:
 module "khutulun" {
   source = "../../../modules/hetzner" # The relative path to the desired child module
 
-  name        = "khutulun.edw.ro"
+  name        = "khutulun"
   server_type = "cx11"
   image       = "centos-7"
   location    = "nbg1"
@@ -135,4 +133,4 @@ module "khutulun" {
 
 # Author Information
 
-- [Elif Samedin](elif.samedin@eaudeweb.ro)
+- [Elif Samedin](elif.samedin@gmail.com)
