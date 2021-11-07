@@ -10,8 +10,8 @@ variable "hcloud_servers" {
     ssh_keys           = list(string)
     ansible_enabled    = optional(bool)
     playbook           = optional(string)
-    delete_protection  = bool
-    rebuild_protection = bool
+    delete_protection  = optional(bool)
+    rebuild_protection = optional(bool)
     user               = optional(string)
   }))
 }

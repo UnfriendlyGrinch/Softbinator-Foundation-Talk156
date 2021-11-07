@@ -12,6 +12,14 @@ hcloud_servers = [
     rebuild_protection = false
     user               = "darkelf"
   },
+  {
+    name          = "bck.samedin.ro"
+    server_type   = "cx11"
+    os            = "centos",
+    major_version = "7",
+    location      = "nbg1"
+    ssh_keys      = []
+  },
 ]
 
 hcloud_floating_ips = [
