@@ -1,0 +1,78 @@
+---
+- name: Install restic on Debian
+  ansible.builtin.apt:
+    name: restic
+    state: present
+  when: hostvars['localhost']['ansible_facts']['pkg_mgr'] == 'apt'
+  tags:
+    - packages
+    - restic
+    - restore
+
+- name: Install restic on FreeBSD
+  community.general.pkgng:
+    name: restic
+    state: present
+  when: hostvars['localhost']['ansible_facts']['pkg_mgr'] == 'pkgng'
+  tags:
+    - packages
+    - restic
+    - restore
+
+- block:
+    - name: Install yum plugin to add copr command
+      ansible.builtin.yum:
+        name: yum-plugin-copr
+        state: present
+
+    - name: Check whether the the copart/restic repository has been previously enabled
+      ansible.builtin.stat:
+        path: "/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:copart:restic.repo"
+      register: restic_repository
+
+    - name: Enable the copart/restic repository
+      ansible.builtin.command: yum copr enable copart/restic -y
+      when: not restic_repository.stat.exists
+
+    - name: Install restic on RHEL 7/CentOS 7
+      ansible.builtin.yum:
+        name: restic
+        state: present
+  when:
+    - hostvars['localhost']['ansible_facts']['pkg_mgr'] == 'yum'
+  become: yes
+  tags:
+    - packages
+    - restic
+    - restore
+
+- block:
+    - name: Install dnf plugin to add copr command
+      ansible.builtin.dnf:
+        name: dnf-plugins-core
+        state: present
+
+    - name: Check whether the the copart/restic repository has been previously enabled
+      ansible.builtin.stat:
+        path: "/etc/yum.repos.d/_copr:copr.fedorainfracloud.org:copart:restic.repo"
+      register: restic_repository
+      when: hostvars['localhost']['ansible_facts']['distribution'] != 'Fedora'
+
+    - name: Enable the copart/restic repository
+      ansible.builtin.command: dnf copr enable copart/restic -y
+      when:
+        - hostvars['localhost']['ansible_facts']['distribution'] != 'Fedora'
+        - restic_repository is not skipped
+        - not restic_repository.stat.exists
+
+    - name: Install restic on CentOS 8/RHEL 8/Rocky 8/Fedora
+      ansible.builtin.dnf:
+        name: restic
+        state: present
+  when:
+    - hostvars['localhost']['ansible_facts']['pkg_mgr'] == 'dnf'
+  become: yes
+  tags:
+    - packages
+    - restic
+    - restore

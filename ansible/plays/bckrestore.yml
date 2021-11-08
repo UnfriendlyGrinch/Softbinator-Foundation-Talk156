@@ -1,0 +1,28 @@
+---
+- hosts: all
+  become: yes
+  serial: 1
+  vars:
+    on_localhost: yes
+    source_server: samedin.ro
+    backup_name: html_samedin_ro
+    backup_server: 116.203.51.87
+    restore_directory: /tmp/samedin.ro
+    snapshot: latest
+    absolute_path: ''
+
+  tasks:
+    - block:
+      - name: Gather facts about localhost
+        ansible.builtin.setup:
+        delegate_to: localhost
+        delegate_facts: yes
+
+      - name: Restore snapshot on localhost
+        ansible.builtin.import_role:
+          name: bckrestore
+        delegate_to: localhost
+      when: on_localhost
+      tags:
+        - restic
+        - restore

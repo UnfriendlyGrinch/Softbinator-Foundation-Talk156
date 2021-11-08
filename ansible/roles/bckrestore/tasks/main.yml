@@ -1,0 +1,210 @@
+---
+# tasks file for bckrestore
+
+- name: Gather OS Specific Variables
+  ansible.builtin.include_vars: "{{ item }}"
+  with_first_found:
+    - files:
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_major_version'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_version'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}-{{ ansible_facts['distribution_release'] }}.yml"
+        - "../vars/{{ ansible_facts['distribution'] }}.yml"
+        - "../vars/{{ ansible_facts['os_family'] }}.yml"
+      skip: yes
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Create "{{ restore_directory }}" directory, if it does not exist
+  ansible.builtin.file:
+    path: "{{ restore_directory }}"
+    state: directory
+    mode: 0755
+    recurse: yes
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Install restic (if this is missing) on localhost
+  ansible.builtin.include_tasks: install_to_localhost.yml
+  when: on_localhost
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Set new variables
+  ansible.builtin.set_fact:
+    restic_ssh_key: "{{ item }}"
+  with_first_found:
+    - "../files/{{ source_server }}_id_ecdsa"
+    - '../files/id_ecdsa'
+  when: on_localhost
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Gather facts about the backup server
+  ansible.builtin.setup:
+    filter:
+      - 'ansible_os_family'
+      - 'discovered_interpreter_python'
+  delegate_to: "{{ hostvars[source_server]['restic_remote_server'][backup_server|int]['host'] }}"
+  delegate_facts: yes
+  register: backup_server_facts
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Set new variables
+  ansible.builtin.set_fact:
+    restic_options: "-o sftp.command='ssh \
+                    -i {{ restic_ssh_key|default('/root/.ssh/id_ecdsa') }} {{ restic_user }}@{{ hostvars[source_server]['restic_remote_server'][backup_server|int].host }} \
+                    -o StrictHostKeyChecking=no \
+                    -o UserKnownHostsFile=/dev/null \
+                    -p {{ hostvars[source_server]['restic_remote_server'][backup_server|int].port }} -s sftp'"
+    restic_repository: "sftp::{{ restic_directory }}/{{ hostvars[source_server]['restic_project'] }}/{{ source_server }}/{{ hostvars[source_server]['restic'][backup_name|int].name }}"
+  when: on_localhost
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Get password from HashiCorp Vault
+  hashivault_read:
+    mount_point: "{{ vault_engine }}"
+    secret: "{{ source_server }}"
+    key: "{{ hostvars[source_server]['restic'][backup_name|int].name }}"
+    version: 2
+  environment:
+    VAULT_ADDR: "{{ lookup('env', 'VAULT_ADDR') }}"
+    VAULT_TOKEN: "{{ lookup('env', 'VAULT_TOKEN') }}"
+  register: vault_password
+  delegate_to: localhost
+  become: no
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- block:
+    - name: Get all snapshots
+      ansible.builtin.shell: "{{ restic_bin }} {{ restic_options }} -r {{ restic_repository }} snapshots"
+      environment:
+        RESTIC_PASSWORD: "{{ vault_password.value }}"
+      register: snapshots
+      changed_when: no
+
+    - name: List all snapshots
+      ansible.builtin.debug:
+        msg:
+          - "Listing all snapshots"
+          - "{{ snapshots.stdout_lines }}"
+
+    - name: Get snapshot ID
+      ansible.builtin.pause:
+        prompt: "Select Snapshot ID"
+        echo: yes
+      register: user_snapshot
+
+    - name: Set snapshot ID
+      ansible.builtin.set_fact:
+        snapshot: "{{ (user_snapshot.user_input is defined and user_snapshot.user_input|length > 0) | ternary(user_snapshot.user_input, 'latest') }}"
+  when: snapshot is undefined
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Set snapshot ID
+  ansible.builtin.set_fact:
+    snapshot: "{{ (snapshot is defined and snapshot|length > 0) | ternary(snapshot, 'latest') }}"
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- block:
+    - name: Get the absolute path to be restored
+      ansible.builtin.pause:
+        prompt: |
+          "Enter the absolute path to be restored (optional)"
+          "In case the provided path is empty, the role will fall back to restoring the entire snapshot."
+          "In case this is either incorrect or does not exist in the snapshot, the roll will not continue."
+          "Otherwise, the role will restore only that subset of files in the snapshot."
+        echo: yes
+      register: user_absolute_path
+
+    - name: Set the absolute path to be restored
+      ansible.builtin.set_fact:
+        absolute_path: "{{ user_absolute_path.user_input }}"
+  when: absolute_path is undefined
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Set the absolute path to be restored
+  ansible.builtin.set_fact:
+    absolute_path: "{{ absolute_path|default('') }}"
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- block:
+    - name: Find the given path in snapshot
+      ansible.builtin.shell: "{{ restic_bin }} {{ restic_options }} -r {{ restic_repository }} find {{ absolute_path }} -s {{ snapshot }}"
+      environment:
+        RESTIC_PASSWORD: "{{ vault_password.value }}"
+      register: check_absolute_path
+      changed_when: no
+
+    - name: Restore a subset of files in the snapshot
+      ansible.builtin.shell: "{{ restic_bin }} {{ restic_options }} -r {{ restic_repository }} restore {{ snapshot }} -i {{ absolute_path }} -t {{ restore_directory }}"
+      environment:
+        RESTIC_PASSWORD: "{{ vault_password.value }}"
+      when: check_absolute_path.stdout|length > 0
+
+    - name: Signal the absolute path does not exist in the snapshot
+      ansible.builtin.debug:
+        msg: "The absolute path does not exist in the snapshot"
+      when: check_absolute_path.stdout|length == 0
+  when: absolute_path|length > 0
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- block:
+    - name: Get the required space to restore the snapshot
+      ansible.builtin.shell: "{{ restic_bin }} {{ restic_options }} -r {{ restic_repository }} stats {{ snapshot }} | tail -1 | sed 's/[^0-9.]*//g'"
+      environment:
+        RESTIC_PASSWORD: "{{ vault_password.value }}"
+      register: snapshot_restore_size
+      changed_when: no
+
+    - name: Get the available space on target directory
+      ansible.builtin.shell: df {{ restore_directory }} | awk 'END{print $4}'
+      register: available_target_size
+      changed_when: no
+
+    - name: Signal there is not enough space to restore the snapshot
+      ansible.builtin.debug:
+        msg: "Not enough space to restore the snapshot"
+      when: (snapshot_restore_size.stdout|float * 1024) is version(available_target_size.stdout, '>')
+
+    - name: Restore from a snapshot
+      ansible.builtin.shell: "{{ restic_bin }} {{ restic_options }} -r {{ restic_repository }} restore {{ snapshot }} -t {{ restore_directory }}"
+      environment:
+        RESTIC_PASSWORD: "{{ vault_password.value }}"
+      when: (snapshot_restore_size.stdout|float * 1024) is version(available_target_size.stdout, '<=')
+  when: absolute_path|length == 0
+  tags:
+    - configuration
+    - restic
+    - restore

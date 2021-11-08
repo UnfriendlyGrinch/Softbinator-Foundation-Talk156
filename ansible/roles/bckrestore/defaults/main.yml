@@ -1,0 +1,8 @@
+---
+# defaults file for bckrestore
+
+restic_bin: restic
+restic_directory: /backup/restic
+restic_user: backup
+
+vault_engine: restic

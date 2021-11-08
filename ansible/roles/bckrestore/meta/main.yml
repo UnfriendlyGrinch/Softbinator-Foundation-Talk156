@@ -1,0 +1,22 @@
+---
+galaxy_info:
+  role_name: bckrestore
+  namespace: unfriendlygrinch
+  author: Andrei Buzoianu & Elif Samedin
+  description: Restore data from backup
+  company: Unfriendly Grinch
+
+  license: BSD
+
+  min_ansible_version: 2.10
+
+  platforms:
+    - name: EL
+      versions:
+        - 7
+        - 8
+
+  galaxy_tags:
+    - restic
+
+dependencies: []
