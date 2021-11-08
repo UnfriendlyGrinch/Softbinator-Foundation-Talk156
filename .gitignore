@@ -41,3 +41,7 @@ override.tf.json
 .envrc
 
 packer-manifest.json
+
+id_ecdsa*
+restic/*
+restic.yml
