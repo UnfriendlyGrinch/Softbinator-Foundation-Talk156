@@ -1,11 +1,11 @@
 hcloud_servers = [
   {
-    name          = "samedin.ro"
-    server_type   = "cx11"
-    os            = "centos",
-    major_version = "7",
-    location      = "nbg1"
-    # ansible_enabled    = true,
+    name               = "samedin.ro"
+    server_type        = "cx11"
+    os                 = "centos",
+    major_version      = "7",
+    location           = "nbg1"
+    ansible_enabled    = true,
     playbook           = "restic.yml"
     ssh_keys           = []
     delete_protection  = false
