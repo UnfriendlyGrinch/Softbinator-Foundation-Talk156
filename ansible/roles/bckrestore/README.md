@@ -9,6 +9,8 @@ This documentation intends to provide a compendious overview to determine how re
 The `bckrestore` Role will restore an existing snapshot either locally (the `control node` in Ansible terms) or on any other server which is managed with Ansible (`managed nodes`).
 A managed node could be the server whose snapshot we aim to restore, a designated backup (storage) server or a new server which is not part of the current setup. The later is particularly helpful in case of Migration or Disaster Recovery Operations, when we need to bring a node back to a certain state (as saved using `restic`).
 
+![bckrestore High-Level Overview](files/img/bckrestore.jpg "bckrestore High-Level Overview")
+
 # Prerequisites
 
 - Python 3.8 and newer.
