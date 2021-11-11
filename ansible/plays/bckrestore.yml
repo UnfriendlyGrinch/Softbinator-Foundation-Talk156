@@ -1,6 +1,7 @@
 ---
 - hosts: all
   become: yes
+  remote_user: darkelf
   serial: 1
   vars:
     on_localhost: yes
@@ -12,6 +13,13 @@
     absolute_path: ''
 
   tasks:
+    - name: Add the source server to the ansible-playbook in-memory inventory
+      ansible.builtin.add_host:
+        name: "{{ source_server }}"
+      tags:
+        - restic
+        - restore
+
     - block:
       - name: Gather facts about localhost
         ansible.builtin.setup:

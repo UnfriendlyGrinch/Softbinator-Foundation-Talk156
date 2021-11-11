@@ -47,6 +47,24 @@
     - restic
     - restore
 
+- name: Set backup server (index) variable to be used in the next tasks
+  ansible.builtin.set_fact:
+    backup_server: "{{ lookup('ansible.utils.index_of', hostvars[source_server]['restic_remote_server'], 'eq', backup_server, 'host') }}"
+  when: backup_server|length > 1
+  tags:
+    - configuration
+    - restic
+    - restore
+
+- name: Set backup name (index) variable to be used in the next tasks
+  ansible.builtin.set_fact:
+    backup_name: "{{ lookup('ansible.utils.index_of', hostvars[source_server]['restic'], 'eq', backup_name, 'name') }}"
+  when: backup_name|length > 2
+  tags:
+    - configuration
+    - restic
+    - restore
+
 - name: Gather facts about the backup server
   ansible.builtin.setup:
     filter:
